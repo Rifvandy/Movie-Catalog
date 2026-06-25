@@ -11,20 +11,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:movie/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('shows catalog and supports favorite navigation', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('Movie Catalog'), findsOneWidget);
+    expect(find.text('Inception'), findsOneWidget);
+    expect(find.byKey(const ValueKey('list-favorite-Inception')), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.tap(find.text('Inception'));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Sinopsis'), findsOneWidget);
+    expect(find.byKey(const ValueKey('detail-favorite-Inception')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('detail-favorite-Inception')));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.favorite), findsWidgets);
   });
 }
