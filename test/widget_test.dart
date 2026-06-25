@@ -13,21 +13,41 @@ import 'package:movie/main.dart';
 void main() {
   testWidgets('shows catalog and supports favorite navigation', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
+
+    expect(find.text('Loading movies...'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Movie Catalog'), findsOneWidget);
+    expect(find.textContaining('Movie Catalog'), findsOneWidget);
+    expect(find.textContaining('0 favorit'), findsOneWidget);
     expect(find.text('Inception'), findsOneWidget);
     expect(find.byKey(const ValueKey('list-favorite-Inception')), findsOneWidget);
+
+    final initialListButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('list-favorite-Inception')),
+    );
+    expect((initialListButton.icon as Icon).icon, Icons.favorite_border);
+
+    await tester.tap(find.byKey(const ValueKey('list-favorite-Inception')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 favorit'), findsOneWidget);
+
+    final favoriteListButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('list-favorite-Inception')),
+    );
+    expect((favoriteListButton.icon as Icon).icon, Icons.favorite);
 
     await tester.tap(find.text('Inception'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sinopsis'), findsOneWidget);
-    expect(find.byKey(const ValueKey('detail-favorite-Inception')), findsOneWidget);
+    expect(find.byKey(const ValueKey('detail-favorite-action-Inception')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('detail-favorite-Inception')));
+    await tester.tap(find.byKey(const ValueKey('detail-favorite-action-Inception')));
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.favorite), findsWidgets);
+    expect(find.textContaining('0 favorit'), findsOneWidget);
   });
 }

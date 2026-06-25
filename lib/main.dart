@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -12,20 +14,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final Set<String> _favoriteMovies = <String>{};
+  late final MovieCatalogBloc _bloc = MovieCatalogBloc();
 
-  bool _isFavorite(MovieItem movie) {
-    return _favoriteMovies.contains(movie.title);
-  }
-
-  void _toggleFavorite(MovieItem movie) {
-    setState(() {
-      if (_favoriteMovies.contains(movie.title)) {
-        _favoriteMovies.remove(movie.title);
-      } else {
-        _favoriteMovies.add(movie.title);
-      }
-    });
+  @override
+  void dispose() {
+    _bloc.dispose();
+    super.dispose();
   }
 
   @override
@@ -56,118 +50,197 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
       ),
-      home: MovieCatalogPage(
-        isFavorite: _isFavorite,
-        onToggleFavorite: _toggleFavorite,
-      ),
+      home: MovieCatalogPage(bloc: _bloc),
     );
   }
 }
 
+class MovieCatalogBloc {
+  MovieCatalogBloc() {
+    _favoriteMoviesController.add(<String>{});
+  }
+
+  final StreamController<Set<String>> _favoriteMoviesController =
+      StreamController<Set<String>>.broadcast();
+
+  late final Future<List<MovieItem>> moviesFuture = MovieRepository.loadMovies();
+
+  final Set<String> _favoriteMovies = <String>{};
+
+  Stream<Set<String>> get favoriteMoviesStream => _favoriteMoviesController.stream;
+
+  Set<String> get currentFavorites => Set.unmodifiable(_favoriteMovies);
+
+  bool isFavorite(MovieItem movie) {
+    return _favoriteMovies.contains(movie.title);
+  }
+
+  void toggleFavorite(MovieItem movie) {
+    if (_favoriteMovies.contains(movie.title)) {
+      _favoriteMovies.remove(movie.title);
+    } else {
+      _favoriteMovies.add(movie.title);
+    }
+    _favoriteMoviesController.add(Set<String>.unmodifiable(_favoriteMovies));
+  }
+
+  void dispose() {
+    _favoriteMoviesController.close();
+  }
+}
+
+class MovieRepository {
+  static Future<List<MovieItem>> loadMovies() async {
+    await Future.delayed(const Duration(milliseconds: 700));
+
+    return const [
+      MovieItem(
+        title: 'Inception',
+        releaseDate: '2010',
+        rating: '8.8',
+        genre: 'Sci-Fi, Thriller',
+        duration: '2h 28m',
+        synopsis:
+            'Seorang pencuri memasuki mimpi untuk menanam ide, lalu menghadapi misi yang menguji batas antara realitas dan ilusi.',
+        imageUrl:
+            'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg',
+      ),
+      MovieItem(
+        title: 'Interstellar',
+        releaseDate: '2014',
+        rating: '8.7',
+        genre: 'Sci-Fi, Adventure',
+        duration: '2h 49m',
+        synopsis:
+            'Tim penjelajah menempuh ruang angkasa demi mencari dunia baru saat Bumi mulai tak lagi layak dihuni.',
+        imageUrl:
+            'https://m.media-amazon.com/images/M/MV5BNTE0MmZiNGEtOGY3NS00NDcyLWFiYTItM2IwMWI4YzBkMzk3XkEyXkFqcGc@._V1_FMjpg_UY4134_.jpg',
+      ),
+      MovieItem(
+        title: 'Tenet',
+        releaseDate: '2020',
+        rating: '7.3',
+        genre: 'Action, Sci-Fi',
+        duration: '2h 30m',
+        synopsis:
+            'Seorang agen menjalankan operasi berbahaya untuk mencegah bencana global dengan manipulasi waktu yang terbalik.',
+        imageUrl:
+            'https://m.media-amazon.com/images/M/MV5BMjk2Y2M2MWEtYWQxNS00Y2U0LTlhZWQtN2EwM2Q0ODhmMzQ1XkEyXkFqcGc@._V1_QL75_UX220.5_.jpg',
+      ),
+      MovieItem(
+        title: 'The Dark Knight Rises',
+        releaseDate: '2012',
+        rating: '8.4',
+        genre: 'Action, Crime',
+        duration: '2h 44m',
+        synopsis:
+            'Batman kembali muncul untuk menghadapi ancaman baru yang memaksa Gotham bertahan di titik terendahnya.',
+        imageUrl:
+            'https://m.media-amazon.com/images/M/MV5BMTk4ODQzNDY3Ml5BMl5BanBnXkFtZTcwODA0NTM4Nw@@._V1_SL200_QL1.jpg',
+      ),
+      MovieItem(
+        title: 'Avatar: The Way of Water',
+        releaseDate: '2022',
+        rating: '7.5',
+        genre: 'Adventure, Fantasy',
+        duration: '3h 12m',
+        synopsis:
+            'Keluarga Sully mencari perlindungan baru sambil mempertahankan ikatan mereka dengan alam dan laut Pandora.',
+        imageUrl:
+            'https://m.media-amazon.com/images/M/MV5BNWI0Y2NkOWEtMmM2OC00MjQ3LWI1YzItZGQxYzQ3NzI4NWZmXkEyXkFqcGc@._V1_QL75_UY562_CR6,0,380,562_.jpg',
+      ),
+    ];
+  }
+}
+
 class MovieCatalogPage extends StatelessWidget {
-  const MovieCatalogPage({
-    super.key,
-    required this.isFavorite,
-    required this.onToggleFavorite,
-  });
+  const MovieCatalogPage({super.key, required this.bloc});
 
-  final bool Function(MovieItem movie) isFavorite;
-  final ValueChanged<MovieItem> onToggleFavorite;
-
-  static const List<MovieItem> movies = [
-    MovieItem(
-      title: 'Inception',
-      releaseDate: '2010',
-      rating: '8.8',
-      genre: 'Sci-Fi, Thriller',
-      duration: '2h 28m',
-      synopsis:
-          'Seorang pencuri memasuki mimpi untuk menanam ide, lalu menghadapi misi yang menguji batas antara realitas dan ilusi.',
-      imageUrl:
-          'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg',
-    ),
-    MovieItem(
-      title: 'Interstellar',
-      releaseDate: '2014',
-      rating: '8.7',
-      genre: 'Sci-Fi, Adventure',
-      duration: '2h 49m',
-      synopsis:
-          'Tim penjelajah menempuh ruang angkasa demi mencari dunia baru saat Bumi mulai tak lagi layak dihuni.',
-      imageUrl: 'https://m.media-amazon.com/images/M/MV5BNTE0MmZiNGEtOGY3NS00NDcyLWFiYTItM2IwMWI4YzBkMzk3XkEyXkFqcGc@._V1_FMjpg_UY4134_.jpg',
-    ),
-    MovieItem(
-      title: 'Tenet',
-      releaseDate: '2020',
-      rating: '7.3',
-      genre: 'Action, Sci-Fi',
-      duration: '2h 30m',
-      synopsis:
-          'Seorang agen menjalankan operasi berbahaya untuk mencegah bencana global dengan manipulasi waktu yang terbalik.',
-      imageUrl: 'https://m.media-amazon.com/images/M/MV5BMjk2Y2M2MWEtYWQxNS00Y2U0LTlhZWQtN2EwM2Q0ODhmMzQ1XkEyXkFqcGc@._V1_QL75_UX220.5_.jpg',
-    ),
-    MovieItem(
-      title: 'The Dark Knight Rises',
-      releaseDate: '2012',
-      rating: '8.4',
-      genre: 'Action, Crime',
-      duration: '2h 44m',
-      synopsis:
-          'Batman kembali muncul untuk menghadapi ancaman baru yang memaksa Gotham bertahan di titik terendahnya.',
-      imageUrl: 'https://m.media-amazon.com/images/M/MV5BMTk4ODQzNDY3Ml5BMl5BanBnXkFtZTcwODA0NTM4Nw@@._V1_SL200_QL1.jpg',
-    ),
-    MovieItem(
-      title: 'Avatar: The Way of Water',
-      releaseDate: '2022',
-      rating: '7.5',
-      genre: 'Adventure, Fantasy',
-      duration: '3h 12m',
-      synopsis:
-          'Keluarga Sully mencari perlindungan baru sambil mempertahankan ikatan mereka dengan alam dan laut Pandora.',
-      imageUrl: 'https://m.media-amazon.com/images/M/MV5BNWI0Y2NkOWEtMmM2OC00MjQ3LWI1YzItZGQxYzQ3NzI4NWZmXkEyXkFqcGc@._V1_QL75_UY562_CR6,0,380,562_.jpg',
-    ),
-  ];
+  final MovieCatalogBloc bloc;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Movie Catalog'),
+        title: StreamBuilder<Set<String>>(
+          stream: bloc.favoriteMoviesStream,
+          initialData: bloc.currentFavorites,
+          builder: (context, snapshot) {
+            final favorites = snapshot.data ?? const <String>{};
+            return Text('Movie Catalog (${favorites.length} favorit)');
+          },
+        ),
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 4),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: movies.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 22),
-                  itemBuilder: (context, index) {
-                    final movie = movies[index];
-                    final favorite = isFavorite(movie);
-                    return MovieCard(
-                      movie: movie,
-                      isFavorite: favorite,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => MovieDetailPage(
+          child: FutureBuilder<List<MovieItem>>(
+            future: bloc.moviesFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading movies...'),
+                    ],
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'Gagal memuat film: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              final movies = snapshot.data ?? const <MovieItem>[];
+
+              return StreamBuilder<Set<String>>(
+                stream: bloc.favoriteMoviesStream,
+                initialData: bloc.currentFavorites,
+                builder: (context, favoriteSnapshot) {
+                  final favorites = favoriteSnapshot.data ?? const <String>{};
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: movies.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 22),
+                          itemBuilder: (context, index) {
+                            final movie = movies[index];
+                            final favorite = favorites.contains(movie.title);
+                            return MovieCard(
                               movie: movie,
-                              isFavorite: isFavorite(movie),
-                              onToggleFavorite: onToggleFavorite,
-                            ),
-                          ),
-                        );
-                      },
-                      onToggleFavorite: () => onToggleFavorite(movie),
-                    );
-                  },
-                ),
-              ),
-            ],
+                              isFavorite: favorite,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => MovieDetailPage(
+                                      movie: movie,
+                                      bloc: bloc,
+                                    ),
+                                  ),
+                                );
+                              },
+                              onToggleFavorite: () => bloc.toggleFavorite(movie),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           ),
         ),
       ),
@@ -335,126 +408,122 @@ class MovieDetailPage extends StatelessWidget {
   const MovieDetailPage({
     super.key,
     required this.movie,
-    required this.isFavorite,
-    required this.onToggleFavorite,
+    required this.bloc,
   });
 
   final MovieItem movie;
-  final bool isFavorite;
-  final ValueChanged<MovieItem> onToggleFavorite;
+  final MovieCatalogBloc bloc;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(movie.title),
-        actions: [
-          IconButton(
-            key: ValueKey('detail-favorite-${movie.title}'),
-            onPressed: () => onToggleFavorite(movie),
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? const Color(0xFFE05D5D) : null,
-            ),
-            tooltip: isFavorite ? 'Hapus dari favorite' : 'Tambah ke favorite',
-          ),
-        ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            Container(
-              height: 360,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE6E6E9),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: movie.imageUrl.isEmpty
-                  ? const Center(
-                      child: Icon(
-                        Icons.movie_creation_outlined,
-                        color: Colors.white,
-                        size: 60,
-                      ),
-                    )
-                  : Image.network(
-                      movie.imageUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Center(
+        child: StreamBuilder<Set<String>>(
+          stream: bloc.favoriteMoviesStream,
+          initialData: bloc.currentFavorites,
+          builder: (context, snapshot) {
+            final favorites = snapshot.data ?? const <String>{};
+            final isFavorite = favorites.contains(movie.title);
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              children: [
+                Container(
+                  height: 360,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE6E6E9),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: movie.imageUrl.isEmpty
+                      ? const Center(
                           child: Icon(
-                            Icons.broken_image_outlined,
+                            Icons.movie_creation_outlined,
                             color: Colors.white,
                             size: 60,
                           ),
-                        );
-                      },
-                    ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    movie.title,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF222222),
+                        )
+                      : Image.network(
+                          movie.imageUrl,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const Center(
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white,
+                                size: 60,
+                              ),
+                            );
+                          },
                         ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        movie.title,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF222222),
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _InfoChip(label: movie.releaseDate),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoChip(label: movie.genre),
+                    _InfoChip(label: movie.duration),
+                    _InfoChip(label: 'Rating ${movie.rating}'),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Sinopsis',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  movie.synopsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        height: 1.6,
+                        color: const Color(0xFF5F5F66),
+                      ),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  key: ValueKey('detail-favorite-action-${movie.title}'),
+                  onPressed: () => bloc.toggleFavorite(movie),
+                  icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
+                  label: Text(
+                    isFavorite ? 'Hapus dari favorite' : 'Tambah ke favorite',
                   ),
                 ),
-                const SizedBox(width: 12),
-                _InfoChip(label: movie.releaseDate),
               ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _InfoChip(label: movie.genre),
-                _InfoChip(label: movie.duration),
-                _InfoChip(label: 'Rating ${movie.rating}'),
-              ],
-            ),
-            const SizedBox(height: 18),
-            Text(
-              'Sinopsis',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              movie.synopsis,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    height: 1.6,
-                    color: const Color(0xFF5F5F66),
-                  ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              key: ValueKey('detail-favorite-action-${movie.title}'),
-              onPressed: () => onToggleFavorite(movie),
-              icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border),
-              label: Text(
-                isFavorite ? 'Hapus dari favorite' : 'Tambah ke favorite',
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
